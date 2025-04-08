@@ -1,14 +1,14 @@
 
 import React, { useState, useRef } from 'react';
-import { Printer, Check, AlertCircle } from 'lucide-react';
 import { FilePreview as FilePreviewType } from '../types';
-import FileUpload from '../components/FileUpload';
-import FilePreview from '../components/FilePreview';
 import PaymentModal from '../components/PaymentModal';
 import Instructions from '../components/Instructions';
 import { calculatePages, calculateCost } from '../components/PageCalculator';
-import { triggerRemotePrinting, isMobileDevice } from '../components/PrinterIntegration';
+import { triggerRemotePrinting } from '../components/PrinterIntegration';
 import { toast } from '../hooks/use-toast';
+import PageHeader from '../components/PageHeader';
+import StatusMessages from '../components/StatusMessages';
+import FileUploadSection from '../components/FileUploadSection';
 
 const Index: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<FilePreviewType[]>([]);
@@ -156,75 +156,26 @@ const Index: React.FC = () => {
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           {/* Header */}
-          <div className="bg-blue-600 p-6 text-white">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Printer className="w-8 h-8" />
-              Print Smart Kiosk
-              {isMobileDevice() && <span className="text-xs bg-blue-500 px-2 py-1 rounded-full">Mobile</span>}
-            </h1>
-            <p className="mt-2 text-blue-100">
-              Upload your documents and print them instantly
-            </p>
-          </div>
+          <PageHeader />
 
           {/* Main Content */}
           <div className="p-6">
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                {error}
-              </div>
-            )}
+            <StatusMessages 
+              error={error}
+              paymentSuccess={paymentSuccess}
+              isCountingPages={isCountingPages}
+            />
 
-            {paymentSuccess && (
-              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-600 flex items-center gap-2">
-                <Check className="w-5 h-5" />
-                Payment successful! Your documents are being printed.
-              </div>
-            )}
-
-            {isCountingPages && (
-              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 flex items-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                Analyzing document...
-              </div>
-            )}
-
-            {/* Selected Files */}
-            {selectedFiles.length > 0 && (
-              <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-medium">Selected Files ({selectedFiles.length}/5)</h3>
-                  <p className="text-sm text-gray-600">
-                    Total: {getTotalPages()} pages • ₹{getTotalCost().toFixed(2)}
-                  </p>
-                </div>
-                {selectedFiles.map((file, index) => (
-                  <div key={index} className="mb-4">
-                    <FilePreview 
-                      file={file}
-                      onClear={() => clearFile(index)}
-                      onPreview={() => previewFile(index)}
-                      onPrint={handlePrintRequest}
-                      isProcessing={isProcessing}
-                    />
-                  </div>
-                ))}
-                <div className="flex justify-end">
-                  <button
-                    onClick={handlePrintRequest}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Print All Files
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Upload Section (if less than 5 files) */}
-            {selectedFiles.length < 5 && (
-              <FileUpload onFileSelect={handleFileSelect} />
-            )}
+            <FileUploadSection
+              selectedFiles={selectedFiles}
+              isProcessing={isProcessing}
+              onFileSelect={handleFileSelect}
+              onClearFile={clearFile}
+              onPreviewFile={previewFile}
+              onPrintRequest={handlePrintRequest}
+              getTotalPages={getTotalPages}
+              getTotalCost={getTotalCost}
+            />
 
             {/* Instructions */}
             <Instructions />
