@@ -13,12 +13,16 @@ export const calculatePages = async (file: File): Promise<number> => {
           const text = String.fromCharCode.apply(null, Array.from(pdfData.slice(0, Math.min(pdfData.length, 8000))));
           const pageMatches = text.match(/\/Type\s*\/Page[^s]/g);
           const pageCount = pageMatches ? pageMatches.length : 0;
-          console.log(`PDF page count estimated: ${pageCount}`);
+          console.log(`PDF page count estimated: ${pageCount} for file ${file.name}`);
           resolve(Math.max(1, pageCount)); // Ensure at least 1 page
         } catch (error) {
           console.error("Error calculating PDF pages:", error);
           resolve(1); // Default to 1 if calculation fails
         }
+      };
+      reader.onerror = function() {
+        console.error("FileReader error during page calculation");
+        resolve(1); // Default to 1 on error
       };
       reader.readAsArrayBuffer(file);
     } else if (file.type.startsWith('image/')) {

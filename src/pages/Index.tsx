@@ -7,6 +7,8 @@ import FilePreview from '../components/FilePreview';
 import PaymentModal from '../components/PaymentModal';
 import Instructions from '../components/Instructions';
 import { calculatePages, calculateCost } from '../components/PageCalculator';
+import { triggerRemotePrinting, isMobileDevice } from '../components/PrinterIntegration';
+import { toast } from '../hooks/use-toast';
 
 const Index: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<FilePreviewType[]>([]);
@@ -73,30 +75,46 @@ const Index: React.FC = () => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentConfirm = () => {
+  const handlePaymentConfirm = async () => {
     setIsProcessing(true);
+    
     // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      setShowPaymentModal(false);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Create print jobs for all files
+    const printJobs = selectedFiles.map(file => ({
+      fileUrl: file.url,
+      fileName: file.name,
+      pageCount: file.pageCount
+    }));
+    
+    // Send print jobs to remote printer
+    const printResult = await triggerRemotePrinting(printJobs);
+    
+    setIsProcessing(false);
+    setShowPaymentModal(false);
+    
+    if (printResult) {
       setPaymentSuccess(true);
-      
-      // After successful payment, trigger print for each file
-      selectedFiles.forEach(file => {
-        const printWindow = window.open(file.url, '_blank');
-        if (printWindow) {
-          printWindow.onload = () => {
-            printWindow.print();
-          };
-        }
+      toast({
+        title: "Print job successful",
+        description: `Sent ${selectedFiles.length} file(s) to printer`,
+        variant: "default",
       });
-
+      
       // Reset payment success message after 5 seconds
       setTimeout(() => {
         setPaymentSuccess(false);
         clearAllFiles();
       }, 5000);
-    }, 2000);
+    } else {
+      setError('Failed to send print job. Please try again.');
+      toast({
+        title: "Print failed",
+        description: "There was an error sending your files to the printer",
+        variant: "destructive",
+      });
+    }
   };
 
   const clearFile = (index: number) => {
@@ -142,6 +160,7 @@ const Index: React.FC = () => {
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Printer className="w-8 h-8" />
               Print Smart Kiosk
+              {isMobileDevice() && <span className="text-xs bg-blue-500 px-2 py-1 rounded-full">Mobile</span>}
             </h1>
             <p className="mt-2 text-blue-100">
               Upload your documents and print them instantly
@@ -160,7 +179,7 @@ const Index: React.FC = () => {
             {paymentSuccess && (
               <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-600 flex items-center gap-2">
                 <Check className="w-5 h-5" />
-                Payment successful! Opening print dialog...
+                Payment successful! Your documents are being printed.
               </div>
             )}
 
