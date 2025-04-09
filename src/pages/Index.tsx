@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { FilePreview as FilePreviewType } from '../types';
 import PaymentModal from '../components/PaymentModal';
@@ -9,6 +8,8 @@ import { toast } from '../hooks/use-toast';
 import PageHeader from '../components/PageHeader';
 import StatusMessages from '../components/StatusMessages';
 import FileUploadSection from '../components/FileUploadSection';
+import { Link } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 
 const Index: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<FilePreviewType[]>([]);
@@ -160,6 +161,16 @@ const Index: React.FC = () => {
 
           {/* Main Content */}
           <div className="p-6">
+            <div className="flex justify-end mb-4">
+              <Link 
+                to="/settings" 
+                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+              >
+                <Settings className="w-4 h-4" />
+                Printer Settings
+              </Link>
+            </div>
+            
             <StatusMessages 
               error={error}
               paymentSuccess={paymentSuccess}
