@@ -1,5 +1,6 @@
 
 import { FilePreview } from '../types';
+import { supabase } from '../integrations/supabase/client';
 
 export interface PrintJob {
   id: string;
@@ -17,7 +18,7 @@ export interface SubmitPrintJobResponse {
   message: string;
 }
 
-// This service would integrate with your actual backend APIs
+// This service integrates with Supabase for database operations
 export class PrintJobService {
   private apiBaseUrl: string;
   
@@ -27,32 +28,61 @@ export class PrintJobService {
   
   async submitPrintJob(files: FilePreview[]): Promise<SubmitPrintJobResponse> {
     try {
-      // In a real implementation, this would submit the files to your backend
-      // via the API Gateway, which would then store them in Supabase
-      
       console.log(`Submitting ${files.length} files to print server`);
       
-      // Mock API call - replace with actual API integration
-      const response = await fetch(`${this.apiBaseUrl}/print-jobs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          files: files.map(file => ({
-            name: file.name,
-            url: file.url,
-            size: file.size,
-            pageCount: file.pageCount
-          }))
-        }),
-      });
+      // For demonstration, we'll use both Supabase and the API
+      // In a real implementation, this might be an API call that then triggers Supabase operations
       
-      if (!response.ok) {
-        throw new Error('Failed to submit print job');
+      // First file will be our demo file
+      const firstFile = files[0];
+      
+      // Insert the file into Supabase
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .insert({
+          file_name: firstFile.name,
+          file_size: firstFile.size,
+          file_url: firstFile.url,
+          page_count: firstFile.pageCount,
+          user_id: 'anonymous', // In a real app, this would be the authenticated user's ID
+          status: 'uploaded'
+        })
+        .select()
+        .single();
+      
+      if (fileError) {
+        console.error('Error inserting file:', fileError);
+        return {
+          jobId: '',
+          success: false,
+          message: fileError.message || 'Failed to submit print job'
+        };
       }
       
-      return await response.json();
+      // Create a print job for the file
+      const { data: jobData, error: jobError } = await supabase
+        .from('print_jobs')
+        .insert({
+          file_id: fileData.id,
+          status: 'queued'
+        })
+        .select()
+        .single();
+      
+      if (jobError) {
+        console.error('Error creating print job:', jobError);
+        return {
+          jobId: '',
+          success: false,
+          message: jobError.message || 'Failed to create print job'
+        };
+      }
+      
+      return {
+        jobId: jobData.id,
+        success: true,
+        message: 'Print job submitted successfully'
+      };
     } catch (error) {
       console.error('Error submitting print job:', error);
       return {
@@ -65,14 +95,37 @@ export class PrintJobService {
   
   async getPrintJobStatus(jobId: string): Promise<PrintJob | null> {
     try {
-      // Mock API call - replace with actual API integration
-      const response = await fetch(`${this.apiBaseUrl}/print-jobs/${jobId}`);
+      const { data, error } = await supabase
+        .from('print_jobs')
+        .select(`
+          id,
+          status,
+          created_at,
+          updated_at,
+          files!inner (
+            id,
+            file_name
+          )
+        `)
+        .eq('id', jobId)
+        .single();
       
-      if (!response.ok) {
-        throw new Error('Failed to get print job status');
+      if (error) {
+        throw error;
       }
       
-      return await response.json();
+      if (!data) {
+        return null;
+      }
+      
+      return {
+        id: data.id,
+        fileId: data.files.id,
+        fileName: data.files.file_name,
+        status: data.status,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
     } catch (error) {
       console.error('Error getting print job status:', error);
       return null;
