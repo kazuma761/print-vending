@@ -64,7 +64,7 @@ export class PrintJobService {
         .from('print_jobs')
         .insert({
           file_id: fileData.id,
-          status: 'queued'
+          status: 'queued' // This is now a valid literal of the union type
         })
         .select()
         .single();
@@ -118,11 +118,14 @@ export class PrintJobService {
         return null;
       }
       
+      // Ensure status is cast to the correct type
+      const status = data.status as 'queued' | 'printing' | 'complete' | 'failed';
+      
       return {
         id: data.id,
         fileId: data.files.id,
         fileName: data.files.file_name,
-        status: data.status,
+        status: status,
         createdAt: data.created_at,
         updatedAt: data.updated_at
       };
