@@ -62,9 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Fix the TypeScript error by using a type assertion
       // Calling our custom RPC function
-      const { data, error } = await supabase
-        .rpc('has_role', { _role: 'admin' as any })
-        .single();
+     const { data, error } = await supabase
+            .rpc('has_role', { _role: 'admin' })
+            .single();
         
       if (error) {
         console.error('Error checking admin status:', error);
