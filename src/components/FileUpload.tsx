@@ -44,7 +44,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
       // If user is logged in, upload to user's folder
       if (user) {
         // Upload to Supabase Storage directly here first
-        const filePath = `${user.id}/${file.name}`;
+        const userId = user.id;
+        const filePath = `${userId}/${file.name}`;
         console.log(`Uploading to path: ${filePath}`);
         
         const { error: uploadError, data } = await supabase.storage
@@ -64,6 +65,50 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
         }
 
         console.log('File uploaded successfully to Storage:', data);
+        
+        // Get the file URL for the database
+        const { data: fileUrlData } = supabase.storage
+          .from('print_files')
+          .getPublicUrl(filePath);
+        
+        console.log('File public URL:', fileUrlData.publicUrl);
+
+        // Calculate pages (assuming calculatePages is available)
+        let pageCount = 1;
+        try {
+          const { calculatePages } = await import('@/components/PageCalculator');
+          pageCount = await calculatePages(file);
+        } catch (pageError) {
+          console.error('Error calculating pages:', pageError);
+        }
+
+        // Create a record in the files table
+        const { error: fileRecordError, data: fileRecord } = await supabase
+          .from('files')
+          .insert({
+            user_id: userId,
+            file_name: file.name,
+            file_size: file.size,
+            file_url: fileUrlData.publicUrl,
+            page_count: pageCount,
+            status: 'uploaded'
+          })
+          .select();
+
+        if (fileRecordError) {
+          console.error('Error creating file record:', fileRecordError);
+          toast({
+            title: "File record creation failed",
+            description: fileRecordError.message,
+            variant: "destructive"
+          });
+        } else {
+          console.log('File record created successfully:', fileRecord);
+          toast({
+            title: "File uploaded successfully",
+            description: `${file.name} has been uploaded and saved`,
+          });
+        }
         
         // Now pass to the parent component handler
         onFileSelect(event);

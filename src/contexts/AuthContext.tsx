@@ -34,7 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -44,6 +45,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // This is just a simple example using email
           const email = session.user.email;
           setIsAdmin(email === 'admin@printease.com');
+
+          // If this is a new sign up, ensure the user record exists in public.users table
+          if (event === 'SIGNED_IN' || event === 'SIGNED_UP') {
+            const { error } = await supabase
+              .from('users')
+              .upsert({
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.user_metadata?.name || null
+              })
+              .select();
+            
+            if (error) {
+              console.error('Error creating/updating user record:', error);
+            } else {
+              console.log('User record created/updated successfully');
+            }
+          }
         } else {
           setIsAdmin(false);
         }
@@ -51,14 +70,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('Existing session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
-      // Check if user is admin
+      // Check if user is admin and create/update user record if logged in
       if (session?.user) {
         const email = session.user.email;
         setIsAdmin(email === 'admin@printease.com');
+
+        // Ensure user record exists in public.users table
+        const { error } = await supabase
+          .from('users')
+          .upsert({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || null
+          })
+          .select();
+        
+        if (error) {
+          console.error('Error creating/updating user record:', error);
+        } else {
+          console.log('User record created/updated successfully on session check');
+        }
       }
       
       setLoading(false);
@@ -68,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string) => {
+    console.log('Signing up user:', email);
     return await supabase.auth.signUp({
       email,
       password,
@@ -75,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('Signing in user:', email);
     return await supabase.auth.signInWithPassword({
       email,
       password,
@@ -82,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    console.log('Signing out user');
     await supabase.auth.signOut();
   };
 

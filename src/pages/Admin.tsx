@@ -24,7 +24,7 @@ const Admin = () => {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Admin access</AlertTitle>
         <AlertDescription>
-          This is a placeholder for the admin dashboard. Full admin functionality will be implemented in a future update.
+          This is a placeholder for the admin dashboard. Full admin functionality has been temporarily disabled.
         </AlertDescription>
       </Alert>
     </div>

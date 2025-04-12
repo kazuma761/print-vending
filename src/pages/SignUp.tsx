@@ -96,10 +96,13 @@ const SignUp: React.FC = () => {
   const onSubmit = async (data: z.infer<typeof signUpSchema>) => {
     setIsLoading(true);
     try {
+      console.log("Starting sign up process");
+      
       // Sign up the user
       const { error, data: authData } = await signUp(data.email, data.password);
       
       if (error) {
+        console.error("Sign up error:", error);
         toast({
           title: "Sign up failed",
           description: error.message,
@@ -107,47 +110,86 @@ const SignUp: React.FC = () => {
         });
         return;
       }
+      
+      console.log("User signed up successfully:", authData?.user?.id);
 
-      // If there's a file to upload
-      if (selectedFile && authData?.user) {
+      // First ensure the user record exists in the users table
+      if (authData?.user) {
         const userId = authData.user.id;
-        const filePath = `${userId}/${selectedFile.name}`;
+        console.log("Creating user record in users table");
         
-        // Upload file to Supabase Storage
-        const { error: uploadError } = await supabase.storage
-          .from('print_files')
-          .upload(filePath, selectedFile);
+        const { error: userError } = await supabase
+          .from('users')
+          .upsert({
+            id: userId,
+            email: data.email,
+            name: null // You could add a name field to the form if desired
+          });
 
-        if (uploadError) {
+        if (userError) {
+          console.error("Error creating user record:", userError);
           toast({
-            title: "File upload failed",
-            description: uploadError.message,
+            title: "User record creation failed",
+            description: userError.message,
             variant: "destructive"
           });
         } else {
-          // Get the file URL
-          const { data: fileData } = supabase.storage
+          console.log("User record created successfully");
+        }
+
+        // If there's a file to upload
+        if (selectedFile) {
+          console.log("Uploading file for the new user");
+          const filePath = `${userId}/${selectedFile.name}`;
+          
+          // Upload file to Supabase Storage
+          const { error: uploadError, data: uploadData } = await supabase.storage
             .from('print_files')
-            .getPublicUrl(filePath);
+            .upload(filePath, selectedFile);
 
-          // Create a record in the files table
-          const { error: fileError } = await supabase
-            .from('files')
-            .insert({
-              file_name: selectedFile.name,
-              file_size: selectedFile.size,
-              file_url: fileData.publicUrl,
-              page_count: await calculatePages(selectedFile),
-              user_id: userId,
-              status: 'uploaded'
-            });
-
-          if (fileError) {
+          if (uploadError) {
+            console.error("File upload error:", uploadError);
             toast({
-              title: "Error creating file record",
-              description: fileError.message,
+              title: "File upload failed",
+              description: uploadError.message,
               variant: "destructive"
             });
+          } else {
+            console.log("File uploaded successfully:", uploadData);
+            
+            // Get the file URL
+            const { data: fileData } = supabase.storage
+              .from('print_files')
+              .getPublicUrl(filePath);
+
+            console.log("File URL:", fileData.publicUrl);
+            
+            const pageCount = await calculatePages(selectedFile);
+            console.log("Page count:", pageCount);
+
+            // Create a record in the files table
+            const { error: fileError, data: fileRecord } = await supabase
+              .from('files')
+              .insert({
+                file_name: selectedFile.name,
+                file_size: selectedFile.size,
+                file_url: fileData.publicUrl,
+                page_count: pageCount,
+                user_id: userId,
+                status: 'uploaded'
+              })
+              .select();
+
+            if (fileError) {
+              console.error("File record creation error:", fileError);
+              toast({
+                title: "Error creating file record",
+                description: fileError.message,
+                variant: "destructive"
+              });
+            } else {
+              console.log("File record created successfully:", fileRecord);
+            }
           }
         }
       }
@@ -160,6 +202,7 @@ const SignUp: React.FC = () => {
       // Redirect to home page
       navigate('/');
     } catch (err: any) {
+      console.error("Unexpected error during sign up:", err);
       toast({
         title: "Sign up failed",
         description: err.message || "An unexpected error occurred",

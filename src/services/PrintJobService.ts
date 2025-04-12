@@ -30,25 +30,41 @@ export class PrintJobService {
     try {
       console.log(`Submitting ${files.length} files to print server`);
       
-      // For demonstration, we'll use both Supabase and the API
-      // In a real implementation, this might be an API call that then triggers Supabase operations
+      if (files.length === 0) {
+        return {
+          jobId: '',
+          success: false,
+          message: 'No files selected for printing'
+        };
+      }
       
       // First file will be our demo file
       const firstFile = files[0];
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      
+      if (!userId) {
+        console.error('No authenticated user found');
+        return {
+          jobId: '',
+          success: false,
+          message: 'User not authenticated'
+        };
+      }
+      
+      console.log('Creating file record for', firstFile.name, 'by user', userId);
       
       // Insert the file into Supabase
       const { data: fileData, error: fileError } = await supabase
         .from('files')
-        .insert({
+        .upsert({
           file_name: firstFile.name,
           file_size: firstFile.size,
           file_url: firstFile.url,
           page_count: firstFile.pageCount,
-          user_id: 'anonymous', // In a real app, this would be the authenticated user's ID
+          user_id: userId,
           status: 'uploaded'
         })
-        .select()
-        .single();
+        .select();
       
       if (fileError) {
         console.error('Error inserting file:', fileError);
@@ -59,15 +75,30 @@ export class PrintJobService {
         };
       }
       
+      console.log('File record created:', fileData);
+      
+      // Create a print job for the file
+      const fileId = fileData?.[0]?.id;
+      
+      if (!fileId) {
+        console.error('No file ID returned from file insertion');
+        return {
+          jobId: '',
+          success: false,
+          message: 'Failed to create file record'
+        };
+      }
+      
+      console.log('Creating print job for file ID:', fileId);
+      
       // Create a print job for the file
       const { data: jobData, error: jobError } = await supabase
         .from('print_jobs')
         .insert({
-          file_id: fileData.id,
-          status: 'queued' // This is now a valid literal of the union type
+          file_id: fileId,
+          status: 'queued'
         })
-        .select()
-        .single();
+        .select();
       
       if (jobError) {
         console.error('Error creating print job:', jobError);
@@ -78,8 +109,10 @@ export class PrintJobService {
         };
       }
       
+      console.log('Print job created:', jobData);
+      
       return {
-        jobId: jobData.id,
+        jobId: jobData[0].id,
         success: true,
         message: 'Print job submitted successfully'
       };
