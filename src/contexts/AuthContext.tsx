@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -18,6 +17,11 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const useAuth = () => useContext(AuthContext);
+
+// Define the type for the RPC function parameters
+interface HasRoleParams {
+  _role: string;
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -60,11 +64,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const checkAdminStatus = async (userId: string) => {
     try {
-      // Call the custom RPC function with proper type handling
+      // Use the defined interface for the RPC parameters
       const { data, error } = await supabase
-        .rpc('has_role', { 
-          _role: 'admin'
-        } as { _role: string })
+        .rpc<boolean>('has_role', { 
+          _role: 'admin' 
+        } as HasRoleParams)
         .single();
       
       if (error) {
