@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -34,7 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: AuthChangeEvent, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
@@ -46,8 +45,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const email = session.user.email;
           setIsAdmin(email === 'admin@printease.com');
 
-          // If this is a new sign up, ensure the user record exists in public.users table
-          if (event === 'SIGNED_IN' || event === 'SIGNED_UP') {
+          // If this is a new sign in, ensure the user record exists in public.users table
+          if (event === 'SIGNED_IN') {
             const { error } = await supabase
               .from('users')
               .upsert({
