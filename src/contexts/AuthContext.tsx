@@ -60,9 +60,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const checkAdminStatus = async (userId: string) => {
     try {
-      // Use a direct RPC call to the function we created in the SQL migration
+      // Fix the TypeScript error by using a type assertion
+      // Calling our custom RPC function
       const { data, error } = await supabase
-        .rpc('has_role', { _role: 'admin' })
+        .rpc('has_role', { _role: 'admin' as any })
         .single();
         
       if (error) {
