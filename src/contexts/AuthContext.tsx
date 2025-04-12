@@ -60,13 +60,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const checkAdminStatus = async (userId: string) => {
     try {
+      // Use a direct RPC call to the function we created in the SQL migration
       const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
+        .rpc('has_role', { _role: 'admin' })
         .single();
+        
+      if (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+        return;
+      }
       
+      // If the function returns true, the user is an admin
       setIsAdmin(!!data);
     } catch (error) {
       console.error('Error checking admin status:', error);
