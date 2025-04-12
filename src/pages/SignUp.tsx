@@ -1,11 +1,8 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { calculatePages } from '@/components/PageCalculator';
-import { FileUpload } from '@/components/FileUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -27,8 +24,6 @@ const SignUp: React.FC = () => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isFileLoading, setIsFileLoading] = useState(false);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -38,60 +33,6 @@ const SignUp: React.FC = () => {
       confirmPassword: ""
     }
   });
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Check file type
-    if (file.type !== 'application/pdf') {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a PDF file",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "File size exceeds 10MB limit",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsFileLoading(true);
-    try {
-      const pageCount = await calculatePages(file);
-      
-      // Check page count
-      if (pageCount > 50) {
-        toast({
-          title: "Too many pages",
-          description: "PDF exceeds 50 page limit",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      setSelectedFile(file);
-      toast({
-        title: "File selected",
-        description: `${file.name} (${pageCount} pages)`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error processing file",
-        description: "Could not read the PDF file",
-        variant: "destructive"
-      });
-    } finally {
-      setIsFileLoading(false);
-    }
-  };
 
   const onSubmit = async (data: z.infer<typeof signUpSchema>) => {
     setIsLoading(true);
@@ -135,62 +76,6 @@ const SignUp: React.FC = () => {
           });
         } else {
           console.log("User record created successfully");
-        }
-
-        // If there's a file to upload
-        if (selectedFile) {
-          console.log("Uploading file for the new user");
-          const filePath = `${userId}/${selectedFile.name}`;
-          
-          // Upload file to Supabase Storage
-          const { error: uploadError, data: uploadData } = await supabase.storage
-            .from('print_files')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            console.error("File upload error:", uploadError);
-            toast({
-              title: "File upload failed",
-              description: uploadError.message,
-              variant: "destructive"
-            });
-          } else {
-            console.log("File uploaded successfully:", uploadData);
-            
-            // Get the file URL
-            const { data: fileData } = supabase.storage
-              .from('print_files')
-              .getPublicUrl(filePath);
-
-            console.log("File URL:", fileData.publicUrl);
-            
-            const pageCount = await calculatePages(selectedFile);
-            console.log("Page count:", pageCount);
-
-            // Create a record in the files table
-            const { error: fileError, data: fileRecord } = await supabase
-              .from('files')
-              .insert({
-                file_name: selectedFile.name,
-                file_size: selectedFile.size,
-                file_url: fileData.publicUrl,
-                page_count: pageCount,
-                user_id: userId,
-                status: 'uploaded'
-              })
-              .select();
-
-            if (fileError) {
-              console.error("File record creation error:", fileError);
-              toast({
-                title: "Error creating file record",
-                description: fileError.message,
-                variant: "destructive"
-              });
-            } else {
-              console.log("File record created successfully:", fileRecord);
-            }
-          }
         }
       }
 
@@ -261,24 +146,6 @@ const SignUp: React.FC = () => {
                 </FormItem>
               )}
             />
-
-            <div className="space-y-2">
-              <FormLabel>Upload PDF (Optional)</FormLabel>
-              <div className="mt-1">
-                <FileUpload onFileSelect={handleFileSelect} />
-                {isFileLoading && (
-                  <div className="flex items-center justify-center mt-2">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <p className="text-sm text-gray-500">Processing file...</p>
-                  </div>
-                )}
-                {selectedFile && !isFileLoading && (
-                  <div className="text-sm text-gray-600 mt-2">
-                    Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </div>
-                )}
-              </div>
-            </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
