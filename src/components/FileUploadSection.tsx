@@ -59,7 +59,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         </div>
       )}
 
-      {/* Upload Section (if less than 5 files) */}
+      {/* Upload Section (always visible for better user experience) */}
       {selectedFiles.length < 5 && (
         <FileUpload onFileSelect={onFileSelect} />
       )}

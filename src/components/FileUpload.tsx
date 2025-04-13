@@ -41,20 +41,34 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
       return;
     }
 
-    // Log upload attempt for debugging
-    console.log(`Attempting to upload file: ${file.name}, size: ${file.size} bytes`);
-
     setIsUploading(true);
     
     try {
       // If user is logged in, upload to user's folder
       if (user) {
-        // Upload to Supabase Storage directly here first
         const userId = user.id;
         const timestamp = new Date().getTime();
         const filePath = `${userId}/${timestamp}_${file.name}`;
+        
         console.log(`Uploading to path: ${filePath}`);
         
+        // First, make sure the storage bucket exists
+        try {
+          const { data: buckets } = await supabase.storage.listBuckets();
+          const printFilesBucket = buckets?.find(bucket => bucket.name === 'print_files');
+          
+          if (!printFilesBucket) {
+            console.log('Creating print_files bucket');
+            await supabase.storage.createBucket('print_files', {
+              public: true,
+              fileSizeLimit: 10485760, // 10MB
+            });
+          }
+        } catch (bucketError) {
+          console.error('Error checking/creating bucket:', bucketError);
+        }
+        
+        // Upload to Supabase Storage
         const { error: uploadError, data } = await supabase.storage
           .from('print_files')
           .upload(filePath, file, {
@@ -81,11 +95,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
         
         console.log('File public URL:', fileUrlData.publicUrl);
 
-        // Calculate pages (assuming calculatePages is available)
+        // Calculate pages
         let pageCount = 1;
         try {
           const { calculatePages } = await import('@/components/PageCalculator');
           pageCount = await calculatePages(file);
+          console.log('Calculated pages:', pageCount);
         } catch (pageError) {
           console.error('Error calculating pages:', pageError);
         }
@@ -100,8 +115,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
             file_url: fileUrlData.publicUrl,
             page_count: pageCount,
             status: 'uploaded'
-          })
-          .select();
+          });
 
         if (fileRecordError) {
           console.error('Error creating file record:', fileRecordError);
@@ -116,20 +130,20 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
             title: "File uploaded successfully",
             description: `${file.name} has been uploaded and saved`,
           });
+          
+          // Create modified event object to pass to parent handler
+          const modifiedEvent = new Event('change', { bubbles: true }) as unknown as React.ChangeEvent<HTMLInputElement>;
+          Object.defineProperty(modifiedEvent, 'target', {
+            writable: false,
+            value: { 
+              files: [file],
+              value: '' // Reset value to allow re-uploading same file
+            }
+          });
+          
+          // Now pass to the parent component handler
+          onFileSelect(modifiedEvent as React.ChangeEvent<HTMLInputElement>);
         }
-        
-        // Create modified event object to pass to parent handler
-        const modifiedEvent = new Event('change', { bubbles: true }) as unknown as React.ChangeEvent<HTMLInputElement>;
-        Object.defineProperty(modifiedEvent, 'target', {
-          writable: false,
-          value: { 
-            files: [file],
-            value: '' // Reset value to allow re-uploading same file
-          }
-        });
-        
-        // Now pass to the parent component handler
-        onFileSelect(modifiedEvent as React.ChangeEvent<HTMLInputElement>);
       } else {
         console.log('No user logged in, using standard file select');
         // If not logged in, just use the standard file handler

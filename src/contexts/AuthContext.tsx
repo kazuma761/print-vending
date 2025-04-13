@@ -127,14 +127,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error during sign out:', error);
         throw error;
       }
-      // Explicitly clear user data after sign out
-      setUser(null);
-      setSession(null);
-      setIsAdmin(false);
+      
       console.log('User successfully signed out');
     } catch (err) {
       console.error('Exception during sign out:', err);
       throw err;
+    } finally {
+      // Explicitly clear user data after sign out attempt (success or failure)
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
     }
   };
 

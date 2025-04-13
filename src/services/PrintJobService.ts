@@ -1,4 +1,3 @@
-
 import { FilePreview } from '../types';
 import { supabase } from '../integrations/supabase/client';
 
@@ -38,9 +37,8 @@ export class PrintJobService {
         };
       }
       
-      // First file will be our demo file
-      const firstFile = files[0];
-      const userId = (await supabase.auth.getUser()).data.user?.id;
+      const userData = await supabase.auth.getUser();
+      const userId = userData.data.user?.id;
       
       if (!userId) {
         console.error('No authenticated user found');
@@ -51,66 +49,93 @@ export class PrintJobService {
         };
       }
       
-      console.log('Creating file record for', firstFile.name, 'by user', userId);
+      // Process each file
+      for (const file of files) {
+        console.log('Processing file:', file.name);
+        
+        // Skip files that are already in database (might have been uploaded via FileUpload component)
+        const { data: existingFile } = await supabase
+          .from('files')
+          .select('id')
+          .eq('file_name', file.name)
+          .eq('user_id', userId)
+          .maybeSingle();
+          
+        if (existingFile) {
+          console.log('File already exists in database:', file.name);
+          continue;
+        }
+        
+        // Insert the file into Supabase
+        const { data: fileData, error: fileError } = await supabase
+          .from('files')
+          .insert({
+            file_name: file.name,
+            file_size: file.size,
+            file_url: file.url,
+            page_count: file.pageCount,
+            user_id: userId,
+            status: 'uploaded'
+          })
+          .select();
+        
+        if (fileError) {
+          console.error(`Error inserting file ${file.name}:`, fileError);
+          // Continue with next file
+        } else {
+          console.log(`File record created for ${file.name}:`, fileData);
+        }
+      }
       
-      // Insert the file into Supabase
-      const { data: fileData, error: fileError } = await supabase
+      // Get all files for this user to create print jobs
+      const { data: userFiles, error: userFilesError } = await supabase
         .from('files')
-        .insert({
-          file_name: firstFile.name,
-          file_size: firstFile.size,
-          file_url: firstFile.url,
-          page_count: firstFile.pageCount,
-          user_id: userId,
-          status: 'uploaded'
-        })
-        .select();
+        .select('id, file_name')
+        .eq('user_id', userId)
+        .eq('status', 'uploaded')
+        .limit(files.length);
       
-      if (fileError) {
-        console.error('Error inserting file:', fileError);
+      if (userFilesError || !userFiles || userFiles.length === 0) {
+        console.error('Error getting user files:', userFilesError);
         return {
           jobId: '',
           success: false,
-          message: fileError.message || 'Failed to submit print job'
+          message: 'Failed to retrieve file records'
         };
       }
       
-      console.log('File record created:', fileData);
+      console.log('Retrieved user files:', userFiles);
       
-      // Create a print job for the file
-      const fileId = fileData?.[0]?.id;
+      // Create a print job for each file
+      let createdJobs = [];
       
-      if (!fileId) {
-        console.error('No file ID returned from file insertion');
+      for (const file of userFiles) {
+        console.log('Creating print job for file ID:', file.id);
+        
+        const { data: jobData, error: jobError } = await supabase
+          .from('print_jobs')
+          .insert({
+            file_id: file.id,
+            status: 'queued'
+          })
+          .select();
+        
+        if (jobError) {
+          console.error(`Error creating print job for file ${file.file_name}:`, jobError);
+        } else if (jobData) {
+          console.log(`Print job created for ${file.file_name}:`, jobData);
+          createdJobs.push(jobData[0]);
+        }
+      }
+      
+      if (createdJobs.length === 0) {
         return {
           jobId: '',
           success: false,
-          message: 'Failed to create file record'
+          message: 'Failed to create any print jobs'
         };
       }
       
-      console.log('Creating print job for file ID:', fileId);
-      
-      // Create a print job for the file
-      const { data: jobData, error: jobError } = await supabase
-        .from('print_jobs')
-        .insert({
-          file_id: fileId,
-          status: 'queued'
-        })
-        .select();
-      
-      if (jobError) {
-        console.error('Error creating print job:', jobError);
-        return {
-          jobId: '',
-          success: false,
-          message: jobError.message || 'Failed to create print job'
-        };
-      }
-      
-      console.log('Print job created:', jobData);
-
       // Create a payment record
       const totalCost = files.reduce((total, file) => total + file.pageCount * 4, 0); // ₹4 per page
       
@@ -131,9 +156,9 @@ export class PrintJobService {
       }
       
       return {
-        jobId: jobData[0].id,
+        jobId: createdJobs[0].id, // Return ID of first job
         success: true,
-        message: 'Print job submitted successfully'
+        message: `${createdJobs.length} print jobs submitted successfully`
       };
     } catch (error) {
       console.error('Error submitting print job:', error);
