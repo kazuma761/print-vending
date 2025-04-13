@@ -46,8 +46,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const email = session.user.email;
           setIsAdmin(email === 'admin@printease.com');
 
-          // If this is a new sign up, ensure the user record exists in public.users table
-          if (event === 'SIGNED_IN' || event === 'SIGNED_UP') {
+          // If this is a new sign up or sign in, ensure the user record exists in public.users table
+          if (event === 'SIGNED_IN') {
             const { error } = await supabase
               .from('users')
               .upsert({
