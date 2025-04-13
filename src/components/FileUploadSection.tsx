@@ -37,7 +37,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
             </p>
           </div>
           {selectedFiles.map((file, index) => (
-            <div key={index} className="mb-4">
+            <div key={`${file.name}-${index}`} className="mb-4">
               <FilePreview 
                 file={file}
                 onClear={() => onClearFile(index)}
@@ -50,9 +50,10 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
           <div className="flex justify-end">
             <button
               onClick={onPrintRequest}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isProcessing}
             >
-              Print All Files
+              {isProcessing ? 'Processing...' : 'Print All Files'}
             </button>
           </div>
         </div>

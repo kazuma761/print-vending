@@ -1,6 +1,6 @@
 
-import React, { useRef } from 'react';
-import { Upload } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Upload, Loader2 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -12,10 +12,14 @@ interface FileUploadProps {
 export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Reset the file input to allow re-selecting the same file
+    event.target.value = '';
 
     // Check file type
     if (file.type !== 'application/pdf') {
@@ -40,18 +44,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
     // Log upload attempt for debugging
     console.log(`Attempting to upload file: ${file.name}, size: ${file.size} bytes`);
 
+    setIsUploading(true);
+    
     try {
       // If user is logged in, upload to user's folder
       if (user) {
         // Upload to Supabase Storage directly here first
         const userId = user.id;
-        const filePath = `${userId}/${file.name}`;
+        const timestamp = new Date().getTime();
+        const filePath = `${userId}/${timestamp}_${file.name}`;
         console.log(`Uploading to path: ${filePath}`);
         
         const { error: uploadError, data } = await supabase.storage
           .from('print_files')
           .upload(filePath, file, {
-            upsert: true
+            upsert: true,
+            cacheControl: '3600'
           });
 
         if (uploadError) {
@@ -110,8 +118,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
           });
         }
         
+        // Create modified event object to pass to parent handler
+        const modifiedEvent = new Event('change', { bubbles: true }) as unknown as React.ChangeEvent<HTMLInputElement>;
+        Object.defineProperty(modifiedEvent, 'target', {
+          writable: false,
+          value: { 
+            files: [file],
+            value: '' // Reset value to allow re-uploading same file
+          }
+        });
+        
         // Now pass to the parent component handler
-        onFileSelect(event);
+        onFileSelect(modifiedEvent as React.ChangeEvent<HTMLInputElement>);
       } else {
         console.log('No user logged in, using standard file select');
         // If not logged in, just use the standard file handler
@@ -130,25 +148,42 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
         description: "There was an error uploading your file",
         variant: "destructive"
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return (
     <div 
-      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
-      onClick={() => fileInputRef.current?.click()}
+      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+        isUploading ? 'border-gray-400 bg-gray-50' : 'border-gray-300 hover:border-blue-500'
+      }`}
+      onClick={() => !isUploading && fileInputRef.current?.click()}
     >
-      <Upload className="w-12 h-12 mx-auto text-gray-400" />
-      <h3 className="mt-4 text-lg font-medium text-gray-900">Upload your file</h3>
-      <p className="mt-2 text-sm text-gray-500">
-        PDF files up to 10MB (max 50 pages)
-      </p>
+      {isUploading ? (
+        <>
+          <Loader2 className="w-12 h-12 mx-auto text-blue-500 animate-spin" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">Uploading...</h3>
+          <p className="mt-2 text-sm text-gray-500">
+            Please wait while your file uploads
+          </p>
+        </>
+      ) : (
+        <>
+          <Upload className="w-12 h-12 mx-auto text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">Upload your file</h3>
+          <p className="mt-2 text-sm text-gray-500">
+            PDF files up to 10MB (max 50 pages)
+          </p>
+        </>
+      )}
       <input
         ref={fileInputRef}
         type="file"
         className="hidden"
         accept=".pdf"
         onChange={handleFileChange}
+        disabled={isUploading}
       />
     </div>
   );

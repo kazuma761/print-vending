@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const email = session.user.email;
           setIsAdmin(email === 'admin@printease.com');
 
-          // If this is a new sign up or sign in, ensure the user record exists in public.users table
+          // If this is a new sign in, ensure the user record exists in public.users table
           if (event === 'SIGNED_IN') {
             const { error } = await supabase
               .from('users')
@@ -121,7 +121,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     console.log('Signing out user');
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error during sign out:', error);
+        throw error;
+      }
+      // Explicitly clear user data after sign out
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+      console.log('User successfully signed out');
+    } catch (err) {
+      console.error('Exception during sign out:', err);
+      throw err;
+    }
   };
 
   return (

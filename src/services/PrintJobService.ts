@@ -56,7 +56,7 @@ export class PrintJobService {
       // Insert the file into Supabase
       const { data: fileData, error: fileError } = await supabase
         .from('files')
-        .upsert({
+        .insert({
           file_name: firstFile.name,
           file_size: firstFile.size,
           file_url: firstFile.url,
@@ -110,6 +110,25 @@ export class PrintJobService {
       }
       
       console.log('Print job created:', jobData);
+
+      // Create a payment record
+      const totalCost = files.reduce((total, file) => total + file.pageCount * 4, 0); // ₹4 per page
+      
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          user_id: userId,
+          amount: totalCost,
+          status: 'completed',
+          currency: 'INR'
+        });
+      
+      if (paymentError) {
+        console.error('Error creating payment record:', paymentError);
+        // Continue anyway - payment record is not critical
+      } else {
+        console.log('Payment record created successfully');
+      }
       
       return {
         jobId: jobData[0].id,
