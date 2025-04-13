@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +30,26 @@ const AuthNavigation: React.FC = () => {
       setIsLoggingOut(false);
     }
   };
+
+  // Add a timeout to prevent infinite loading state
+  React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (isLoggingOut) {
+      timeoutId = setTimeout(() => {
+        setIsLoggingOut(false);
+        toast({
+          title: "Logout timeout",
+          description: "Logout process took too long. Please try again.",
+          variant: "destructive"
+        });
+      }, 10000); // 10 second timeout
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isLoggingOut]);
 
   return (
     <div className="flex items-center space-x-4">
