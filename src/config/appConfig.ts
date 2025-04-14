@@ -12,7 +12,7 @@ export const appConfig = {
   wsUrl: 'wss://api.printsmartapp.com/ws',
   
   // Limits
-  maxFilesPerUser: 5,
+  maxFilesPerUser: 6,
   maxPagesPerDocument: 50,
   maxFileSizeMB: 10,
   
