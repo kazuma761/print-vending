@@ -12,6 +12,7 @@ export type Database = {
       files: {
         Row: {
           created_at: string | null
+          email: string | null
           file_name: string
           file_size: number
           file_url: string
@@ -22,6 +23,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          email?: string | null
           file_name: string
           file_size: number
           file_url: string
@@ -32,6 +34,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          email?: string | null
           file_name?: string
           file_size?: number
           file_url?: string

@@ -19,7 +19,7 @@ const AuthNavigation: React.FC = () => {
         title: "Logged out",
         description: "You have been successfully logged out",
       });
-      navigate('/');
+      // No need to navigate here as we're forcing a reload in the AuthContext
     } catch (error) {
       console.error('Logout error:', error);
       toast({
@@ -27,7 +27,6 @@ const AuthNavigation: React.FC = () => {
         description: "There was a problem logging out. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsLoggingOut(false);
     }
   };

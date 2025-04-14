@@ -59,10 +59,8 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         </div>
       )}
 
-      {/* Upload Section (always visible for better user experience) */}
-      {selectedFiles.length < 5 && (
-        <FileUpload onFileSelect={onFileSelect} />
-      )}
+      {/* Upload Section always visible to allow uploading after printing */}
+      <FileUpload onFileSelect={onFileSelect} />
     </>
   );
 };

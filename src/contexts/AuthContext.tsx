@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
@@ -48,20 +48,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // If this is a new sign in, ensure the user record exists in public.users table
           if (event === 'SIGNED_IN') {
-            const { error } = await supabase
-              .from('users')
-              .upsert({
-                id: session.user.id,
-                email: session.user.email,
-                name: session.user.user_metadata?.name || null
-              })
-              .select();
-            
-            if (error) {
-              console.error('Error creating/updating user record:', error);
-            } else {
-              console.log('User record created/updated successfully');
-            }
+            setTimeout(() => {
+              supabase
+                .from('users')
+                .upsert({
+                  id: session.user.id,
+                  email: session.user.email,
+                  name: session.user.user_metadata?.name || null
+                })
+                .select()
+                .then(({ error }) => {
+                  if (error) {
+                    console.error('Error creating/updating user record:', error);
+                  } else {
+                    console.log('User record created/updated successfully');
+                  }
+                });
+            }, 0);
           }
         } else {
           setIsAdmin(false);
@@ -70,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Existing session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
@@ -81,26 +84,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAdmin(email === 'admin@printease.com');
 
         // Ensure user record exists in public.users table
-        const { error } = await supabase
-          .from('users')
-          .upsert({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.user_metadata?.name || null
-          })
-          .select();
-        
-        if (error) {
-          console.error('Error creating/updating user record:', error);
-        } else {
-          console.log('User record created/updated successfully on session check');
-        }
+        setTimeout(() => {
+          supabase
+            .from('users')
+            .upsert({
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.user_metadata?.name || null
+            })
+            .select()
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error creating/updating user record:', error);
+              } else {
+                console.log('User record created/updated successfully on session check');
+              }
+            });
+        }, 0);
       }
       
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string) => {
@@ -122,21 +130,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     console.log('Signing out user');
     try {
-      const { error } = await supabase.auth.signOut();
+      // First explicitly clear user data before signing out
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+      
+      // Clear cache by removing auth tokens from localStorage
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Then sign out from Supabase
+      const { error } = await supabase.auth.signOut({
+        scope: 'local' // Only sign out locally to avoid session conflicts
+      });
+      
       if (error) {
         console.error('Error during sign out:', error);
         throw error;
       }
       
       console.log('User successfully signed out');
+      
+      // Force a reload to clear any cached state in React components
+      window.location.href = '/';
+      
     } catch (err) {
       console.error('Exception during sign out:', err);
       throw err;
-    } finally {
-      // Explicitly clear user data after sign out attempt (success or failure)
-      setUser(null);
-      setSession(null);
-      setIsAdmin(false);
     }
   };
 

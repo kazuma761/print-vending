@@ -48,7 +48,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
       if (user) {
         const userId = user.id;
         const timestamp = new Date().getTime();
-        const filePath = `${userId}/${timestamp}_${file.name}`;
+        const filePath = `${userId}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         
         console.log(`Uploading to path: ${filePath}`);
         
@@ -103,6 +103,30 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
           console.log('Calculated pages:', pageCount);
         } catch (pageError) {
           console.error('Error calculating pages:', pageError);
+        }
+
+        // Check for session-based file limit
+        const { data: sessionFiles, error: countError } = await supabase
+          .from('files')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('status', 'uploaded')
+          .is('status', 'uploaded');
+
+        if (countError) {
+          console.error('Error checking file count:', countError);
+        } else {
+          const currentSessionCount = sessionFiles?.length || 0;
+          console.log(`Current session file count: ${currentSessionCount}`);
+          
+          if (currentSessionCount >= 5) {
+            toast({
+              title: "File limit reached",
+              description: "You can only upload 5 files per session. Please print your current files first.",
+              variant: "destructive"
+            });
+            return;
+          }
         }
 
         // Create a record in the files table
@@ -187,7 +211,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
           <Upload className="w-12 h-12 mx-auto text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900">Upload your file</h3>
           <p className="mt-2 text-sm text-gray-500">
-            PDF files up to 10MB (max 50 pages)
+            PDF files up to 10MB (max 5 files per session)
           </p>
         </>
       )}

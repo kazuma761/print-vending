@@ -9,6 +9,8 @@ import { toast } from '../hooks/use-toast';
 import PageHeader from '../components/PageHeader';
 import StatusMessages from '../components/StatusMessages';
 import FileUploadSection from '../components/FileUploadSection';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../integrations/supabase/client';
 
 const Index: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<FilePreviewType[]>([]);
@@ -19,6 +21,7 @@ const Index: React.FC = () => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [isCountingPages, setIsCountingPages] = useState(false);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
+  const { user } = useAuth();
   
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -37,9 +40,9 @@ const Index: React.FC = () => {
       return;
     }
     
-    // Check if we've reached the maximum number of files
+    // Check if we've reached the maximum number of files for this session
     if (selectedFiles.length >= 5) {
-      setError('Maximum of 5 files can be uploaded at once.');
+      setError('Maximum of 5 files can be uploaded per session.');
       return;
     }
 
@@ -101,6 +104,29 @@ const Index: React.FC = () => {
         description: `Sent ${selectedFiles.length} file(s) to printer`,
         variant: "default",
       });
+      
+      // Update file status in database if user is logged in
+      if (user) {
+        try {
+          // Get the file names from selected files
+          const fileNames = selectedFiles.map(file => file.name);
+          
+          // Update the status of these files in the database
+          const { error } = await supabase
+            .from('files')
+            .update({ status: 'printed' })
+            .eq('user_id', user.id)
+            .in('file_name', fileNames);
+          
+          if (error) {
+            console.error('Error updating file status:', error);
+          } else {
+            console.log('File status updated to printed');
+          }
+        } catch (error) {
+          console.error('Error in database update:', error);
+        }
+      }
       
       // Reset payment success message after 5 seconds
       setTimeout(() => {
