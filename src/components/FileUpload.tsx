@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { Upload, Loader2 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
@@ -106,7 +105,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
           console.error('Error calculating pages:', pageError);
         }
 
-        // Check for session-based file limit
+        // Updated check for total files per session
         const { data: sessionFiles, error: countError } = await supabase
           .from('files')
           .select('id')
@@ -125,6 +124,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
               description: `You can only upload ${appConfig.maxFilesPerUser} files per session. Please print your current files first.`,
               variant: "destructive"
             });
+            setIsUploading(false);
             return;
           }
         }

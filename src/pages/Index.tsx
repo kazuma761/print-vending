@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { FilePreview as FilePreviewType } from '../types';
 import PaymentModal from '../components/PaymentModal';
@@ -27,6 +26,12 @@ const Index: React.FC = () => {
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Check total number of files
+    if (selectedFiles.length >= appConfig.maxFilesPerUser) {
+      setError(`Maximum of ${appConfig.maxFilesPerUser} files can be uploaded per session.`);
+      return;
+    }
 
     // Check file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
