@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { Upload, Loader2 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
@@ -83,6 +84,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
             description: uploadError.message,
             variant: "destructive"
           });
+          setIsUploading(false);
           return;
         }
 
@@ -132,14 +134,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
         // Create a record in the files table
         const { error: fileRecordError, data: fileRecord } = await supabase
           .from('files')
-          .insert({
+          .insert([{
             user_id: userId,
             file_name: file.name,
             file_size: file.size,
             file_url: fileUrlData.publicUrl,
             page_count: pageCount,
             status: 'uploaded'
-          });
+          }]);
 
         if (fileRecordError) {
           console.error('Error creating file record:', fileRecordError);
