@@ -106,12 +106,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
         }
 
         // Check for session-based file limit
+        // Fix: The correct way to query with Supabase types
         const { data: sessionFiles, error: countError } = await supabase
           .from('files')
           .select('id')
           .eq('user_id', userId)
-          .eq('status', 'uploaded')
-          .is('status', 'uploaded');
+          .eq('status', 'uploaded');
 
         if (countError) {
           console.error('Error checking file count:', countError);
