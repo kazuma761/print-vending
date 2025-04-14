@@ -3,6 +3,7 @@ import React from 'react';
 import { FilePreview as FilePreviewType } from '../types';
 import FileUpload from './FileUpload';
 import FilePreview from './FilePreview';
+import { appConfig } from '../config/appConfig';
 
 interface FileUploadSectionProps {
   selectedFiles: FilePreviewType[];
@@ -31,7 +32,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       {selectedFiles.length > 0 && (
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium">Selected Files ({selectedFiles.length}/5)</h3>
+            <h3 className="font-medium">Selected Files ({selectedFiles.length}/{appConfig.maxFilesPerUser})</h3>
             <p className="text-sm text-gray-600">
               Total: {getTotalPages()} pages • ₹{getTotalCost().toFixed(2)}
             </p>

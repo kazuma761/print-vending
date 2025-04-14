@@ -4,6 +4,7 @@ import { Upload, Loader2 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { appConfig } from '../config/appConfig';
 
 interface FileUploadProps {
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -32,10 +33,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
     }
 
     // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > appConfig.maxFileSizeMB * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "File size exceeds 10MB limit",
+        description: `File size exceeds ${appConfig.maxFileSizeMB}MB limit`,
         variant: "destructive"
       });
       return;
@@ -61,7 +62,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
             console.log('Creating print_files bucket');
             await supabase.storage.createBucket('print_files', {
               public: true,
-              fileSizeLimit: 10485760, // 10MB
+              fileSizeLimit: appConfig.maxFileSizeMB * 1024 * 1024, // Convert MB to bytes
             });
           }
         } catch (bucketError) {
@@ -106,7 +107,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
         }
 
         // Check for session-based file limit
-        // Fix: The correct way to query with Supabase types
         const { data: sessionFiles, error: countError } = await supabase
           .from('files')
           .select('id')
@@ -119,10 +119,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
           const currentSessionCount = sessionFiles?.length || 0;
           console.log(`Current session file count: ${currentSessionCount}`);
           
-          if (currentSessionCount >= 5) {
+          if (currentSessionCount >= appConfig.maxFilesPerUser) {
             toast({
               title: "File limit reached",
-              description: "You can only upload 5 files per session. Please print your current files first.",
+              description: `You can only upload ${appConfig.maxFilesPerUser} files per session. Please print your current files first.`,
               variant: "destructive"
             });
             return;
@@ -211,7 +211,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
           <Upload className="w-12 h-12 mx-auto text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900">Upload your file</h3>
           <p className="mt-2 text-sm text-gray-500">
-            PDF files up to 10MB (max 5 files per session)
+            PDF files up to 10MB (max {appConfig.maxFilesPerUser} files per session)
           </p>
         </>
       )}

@@ -11,6 +11,7 @@ import StatusMessages from '../components/StatusMessages';
 import FileUploadSection from '../components/FileUploadSection';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
+import { appConfig } from '../config/appConfig';
 
 const Index: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<FilePreviewType[]>([]);
@@ -35,14 +36,14 @@ const Index: React.FC = () => {
     }
 
     // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File size exceeds 10MB limit.');
+    if (file.size > appConfig.maxFileSizeMB * 1024 * 1024) {
+      setError(`File size exceeds ${appConfig.maxFileSizeMB}MB limit.`);
       return;
     }
     
     // Check if we've reached the maximum number of files for this session
-    if (selectedFiles.length >= 5) {
-      setError('Maximum of 5 files can be uploaded per session.');
+    if (selectedFiles.length >= appConfig.maxFilesPerUser) {
+      setError(`Maximum of ${appConfig.maxFilesPerUser} files can be uploaded per session.`);
       return;
     }
 
@@ -52,8 +53,8 @@ const Index: React.FC = () => {
 
     // Check total page count across all files
     const currentTotalPages = selectedFiles.reduce((sum, file) => sum + file.pageCount, 0);
-    if (currentTotalPages + pageCount > 50) {
-      setError('Total page count exceeds 50 page limit.');
+    if (currentTotalPages + pageCount > appConfig.maxPagesPerDocument) {
+      setError(`Total page count exceeds ${appConfig.maxPagesPerDocument} page limit.`);
       return;
     }
 
