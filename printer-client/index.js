@@ -93,8 +93,12 @@ async function pollForPrintJobs() {
       return;
     }
 
-    for (const job of jobs) {
-      await processPrintJob(job);
+    console.log(`Found ${jobs?.length || 0} queued jobs`);
+
+    if (jobs && jobs.length > 0) {
+      for (const job of jobs) {
+        await processPrintJob(job);
+      }
     }
   } catch (error) {
     console.error('Polling error:', error);
@@ -104,6 +108,11 @@ async function pollForPrintJobs() {
 // Poll every 30 seconds
 function startPrinterClient() {
   console.log('Printer client started. Polling for jobs...');
+  
+  // Do an immediate check
+  pollForPrintJobs();
+  
+  // Then set up the interval
   setInterval(pollForPrintJobs, 30000);
 }
 

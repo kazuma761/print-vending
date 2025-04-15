@@ -44,16 +44,44 @@ export class PrintJobService {
       const createdJobs = [];
       
       for (const file of files) {
-        const { data: fileRecord, error: fileError } = await supabase
+        // First, check if the file already exists in the database
+        const { data: existingFiles, error: existingError } = await supabase
           .from('files')
           .select('id')
           .eq('file_name', file.name)
-          .eq('user_id', userId)
-          .maybeSingle();
+          .eq('user_id', userId);
         
-        if (fileError || !fileRecord) {
-          console.error('Error finding file record:', fileError);
+        let fileId;
+        
+        if (existingError) {
+          console.error('Error checking existing files:', existingError);
           continue;
+        }
+        
+        // If file doesn't exist in the database yet, create it
+        if (!existingFiles || existingFiles.length === 0) {
+          // Create file record first
+          const { data: newFile, error: fileError } = await supabase
+            .from('files')
+            .insert({
+              user_id: userId,
+              file_name: file.name,
+              file_url: file.url,
+              file_size: file.size || 0,
+              page_count: file.pageCount,
+              status: 'uploaded'
+            })
+            .select()
+            .single();
+          
+          if (fileError || !newFile) {
+            console.error('Error creating file record:', fileError);
+            continue;
+          }
+          
+          fileId = newFile.id;
+        } else {
+          fileId = existingFiles[0].id;
         }
         
         // Create print queue entry
@@ -61,9 +89,9 @@ export class PrintJobService {
           .from('printer_queue')
           .insert({
             user_id: userId,
-            file_id: fileRecord.id,
+            file_id: fileId,
             file_name: file.name,
-            page_count: file.pageCount,
+            page_count: file.pageCount || 1,
             status: 'queued'
           })
           .select();
@@ -110,12 +138,13 @@ export class PrintJobService {
           created_at,
           updated_at,
           page_count,
-          files!inner (id)
+          email
         `)
         .eq('id', jobId)
-        .single();
+        .maybeSingle();
       
       if (error) {
+        console.error('Error getting job status:', error);
         throw error;
       }
       
@@ -127,7 +156,7 @@ export class PrintJobService {
         id: data.id,
         fileId: data.file_id,
         fileName: data.file_name,
-        email: null,
+        email: data.email,
         status: data.status as 'queued' | 'printing' | 'complete' | 'failed',
         createdAt: data.created_at,
         updatedAt: data.updated_at,
