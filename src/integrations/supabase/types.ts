@@ -132,6 +132,53 @@ export type Database = {
           },
         ]
       }
+      printer_queue: {
+        Row: {
+          created_at: string
+          email: string | null
+          file_id: string
+          file_name: string
+          id: string
+          page_count: number
+          printer_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          file_id: string
+          file_name: string
+          id?: string
+          page_count: number
+          printer_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          file_id?: string
+          file_name?: string
+          id?: string
+          page_count?: number
+          printer_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "printer_queue_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null

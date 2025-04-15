@@ -1,0 +1,16 @@
+
+{
+  "name": "print-client",
+  "version": "1.0.0",
+  "description": "Supabase Print Job Client",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "pdf-lib": "^1.17.1",
+    "axios": "^1.6.0",
+    "pdf-to-printer": "^2.6.0"
+  }
+}

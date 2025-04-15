@@ -10,6 +10,7 @@ export interface PrintJob {
   status: 'queued' | 'printing' | 'complete' | 'failed';
   createdAt: string;
   updatedAt: string;
+  pageCount?: number;
 }
 
 export interface SubmitPrintJobResponse {
@@ -19,7 +20,6 @@ export interface SubmitPrintJobResponse {
   message: string;
 }
 
-// This service integrates with Supabase for database operations
 export class PrintJobService {
   private apiBaseUrl: string;
   
@@ -29,21 +29,10 @@ export class PrintJobService {
   
   async submitPrintJob(files: FilePreview[]): Promise<SubmitPrintJobResponse> {
     try {
-      console.log(`Submitting ${files.length} files to print server`);
-      
-      if (files.length === 0) {
-        return {
-          jobId: '',
-          success: false,
-          message: 'No files selected for printing'
-        };
-      }
-      
       const userData = await supabase.auth.getUser();
       const userId = userData.data.user?.id;
       
       if (!userId) {
-        console.error('No authenticated user found');
         return {
           jobId: '',
           success: false,
@@ -51,81 +40,37 @@ export class PrintJobService {
         };
       }
       
-      // Process each file
+      // Process each file and create print queue entries
+      const createdJobs = [];
+      
       for (const file of files) {
-        console.log('Processing file:', file.name);
-        
-        // Skip files that are already in database
-        const { data: existingFile } = await supabase
+        const { data: fileRecord, error: fileError } = await supabase
           .from('files')
           .select('id')
           .eq('file_name', file.name)
           .eq('user_id', userId)
           .maybeSingle();
-          
-        if (existingFile) {
-          console.log('File already exists in database:', file.name);
+        
+        if (fileError || !fileRecord) {
+          console.error('Error finding file record:', fileError);
           continue;
         }
         
-        // Insert the file into Supabase
-        const { data: fileData, error: fileError } = await supabase
-          .from('files')
-          .insert({
-            file_name: file.name,
-            file_size: file.size,
-            file_url: file.url,
-            page_count: file.pageCount,
-            user_id: userId,
-            status: 'uploaded'
-          })
-          .select();
-        
-        if (fileError) {
-          console.error(`Error inserting file ${file.name}:`, fileError);
-        } else {
-          console.log(`File record created for ${file.name}:`, fileData);
-        }
-      }
-      
-      // Get all files for this user to create print jobs
-      const { data: userFiles, error: userFilesError } = await supabase
-        .from('files')
-        .select('id, file_name, email')
-        .eq('user_id', userId)
-        .eq('status', 'uploaded')
-        .limit(files.length);
-      
-      if (userFilesError || !userFiles || userFiles.length === 0) {
-        console.error('Error getting user files:', userFilesError);
-        return {
-          jobId: '',
-          success: false,
-          message: 'Failed to retrieve file records'
-        };
-      }
-      
-      console.log('Retrieved user files:', userFiles);
-      
-      // Create a print job for each file
-      let createdJobs = [];
-      
-      for (const file of userFiles) {
-        console.log('Creating print job for file ID:', file.id);
-        
+        // Create print queue entry
         const { data: jobData, error: jobError } = await supabase
-          .from('print_jobs')
+          .from('printer_queue')
           .insert({
-            file_id: file.id,
-            file_name: file.file_name,
+            user_id: userId,
+            file_id: fileRecord.id,
+            file_name: file.name,
+            page_count: file.pageCount,
             status: 'queued'
           })
           .select();
         
         if (jobError) {
-          console.error(`Error creating print job for file ${file.file_name}:`, jobError);
+          console.error('Error creating print job:', jobError);
         } else if (jobData) {
-          console.log(`Print job created for ${file.file_name}:`, jobData);
           createdJobs.push(jobData[0]);
         }
       }
@@ -136,24 +81,6 @@ export class PrintJobService {
           success: false,
           message: 'Failed to create any print jobs'
         };
-      }
-      
-      // Create a payment record
-      const totalCost = files.reduce((total, file) => total + file.pageCount * 4, 0); // ₹4 per page
-      
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          user_id: userId,
-          amount: totalCost,
-          status: 'completed',
-          currency: 'INR'
-        });
-      
-      if (paymentError) {
-        console.error('Error creating payment record:', paymentError);
-      } else {
-        console.log('Payment record created successfully');
       }
       
       return {
@@ -174,15 +101,15 @@ export class PrintJobService {
   async getPrintJobStatus(jobId: string): Promise<PrintJob | null> {
     try {
       const { data, error } = await supabase
-        .from('print_jobs')
+        .from('printer_queue')
         .select(`
           id,
           file_id,
           file_name,
-          email,
           status,
           created_at,
           updated_at,
+          page_count,
           files!inner (id)
         `)
         .eq('id', jobId)
@@ -196,17 +123,15 @@ export class PrintJobService {
         return null;
       }
       
-      // Ensure status is cast to the correct type
-      const status = data.status as 'queued' | 'printing' | 'complete' | 'failed';
-      
       return {
         id: data.id,
         fileId: data.file_id,
-        fileName: data.file_name || '',
-        email: data.email,
-        status: status,
+        fileName: data.file_name,
+        email: null,
+        status: data.status as 'queued' | 'printing' | 'complete' | 'failed',
         createdAt: data.created_at,
-        updatedAt: data.updated_at
+        updatedAt: data.updated_at,
+        pageCount: data.page_count
       };
     } catch (error) {
       console.error('Error getting print job status:', error);
