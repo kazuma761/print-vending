@@ -1,3 +1,4 @@
+
 import { FilePreview } from '../types';
 import { supabase } from '../integrations/supabase/client';
 
@@ -5,6 +6,7 @@ export interface PrintJob {
   id: string;
   fileId: string;
   fileName: string;
+  email: string | null;
   status: 'queued' | 'printing' | 'complete' | 'failed';
   createdAt: string;
   updatedAt: string;
@@ -53,7 +55,7 @@ export class PrintJobService {
       for (const file of files) {
         console.log('Processing file:', file.name);
         
-        // Skip files that are already in database (might have been uploaded via FileUpload component)
+        // Skip files that are already in database
         const { data: existingFile } = await supabase
           .from('files')
           .select('id')
@@ -81,7 +83,6 @@ export class PrintJobService {
         
         if (fileError) {
           console.error(`Error inserting file ${file.name}:`, fileError);
-          // Continue with next file
         } else {
           console.log(`File record created for ${file.name}:`, fileData);
         }
@@ -90,7 +91,7 @@ export class PrintJobService {
       // Get all files for this user to create print jobs
       const { data: userFiles, error: userFilesError } = await supabase
         .from('files')
-        .select('id, file_name')
+        .select('id, file_name, email')
         .eq('user_id', userId)
         .eq('status', 'uploaded')
         .limit(files.length);
@@ -116,6 +117,7 @@ export class PrintJobService {
           .from('print_jobs')
           .insert({
             file_id: file.id,
+            file_name: file.file_name,
             status: 'queued'
           })
           .select();
@@ -150,13 +152,12 @@ export class PrintJobService {
       
       if (paymentError) {
         console.error('Error creating payment record:', paymentError);
-        // Continue anyway - payment record is not critical
       } else {
         console.log('Payment record created successfully');
       }
       
       return {
-        jobId: createdJobs[0].id, // Return ID of first job
+        jobId: createdJobs[0].id,
         success: true,
         message: `${createdJobs.length} print jobs submitted successfully`
       };
@@ -176,13 +177,13 @@ export class PrintJobService {
         .from('print_jobs')
         .select(`
           id,
+          file_id,
+          file_name,
+          email,
           status,
           created_at,
           updated_at,
-          files!inner (
-            id,
-            file_name
-          )
+          files!inner (id)
         `)
         .eq('id', jobId)
         .single();
@@ -200,8 +201,9 @@ export class PrintJobService {
       
       return {
         id: data.id,
-        fileId: data.files.id,
-        fileName: data.files.file_name,
+        fileId: data.file_id,
+        fileName: data.file_name || '',
+        email: data.email,
         status: status,
         createdAt: data.created_at,
         updatedAt: data.updated_at
