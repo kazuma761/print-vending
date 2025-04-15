@@ -99,8 +99,9 @@ export const PrintJobProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (response.success && response.jobId) {
         const newJob: PrintJob = {
           id: response.jobId,
-          fileId: 'generated', // This would come from the backend in a real implementation
+          fileId: 'generated', 
           fileName: files.length === 1 ? files[0].name : `${files.length} files`,
+          email: null, // Add the email property here
           status: 'queued',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()

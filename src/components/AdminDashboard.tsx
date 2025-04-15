@@ -37,6 +37,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isAdmin }) => {
             status,
             created_at,
             updated_at,
+            email,
+            file_name,
             files!inner (
               id,
               file_name,
@@ -53,7 +55,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isAdmin }) => {
         const formattedJobs: PrintJobWithFile[] = jobsData.map(job => ({
           id: job.id,
           fileId: job.files.id,
-          fileName: job.files.file_name,
+          fileName: job.file_name || job.files.file_name,
+          email: job.email,
           status: job.status as 'queued' | 'printing' | 'complete' | 'failed',
           createdAt: job.created_at,
           updatedAt: job.updated_at,
@@ -117,6 +120,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isAdmin }) => {
             <TableRow>
               <TableHead>Job ID</TableHead>
               <TableHead>File Name</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>User ID</TableHead>
               <TableHead>Created At</TableHead>
@@ -126,13 +130,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isAdmin }) => {
           <TableBody>
             {printJobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">No print jobs found</TableCell>
+                <TableCell colSpan={7} className="text-center">No print jobs found</TableCell>
               </TableRow>
             ) : (
               printJobs.map((job) => (
                 <TableRow key={job.id}>
                   <TableCell className="font-mono text-xs">{job.id}</TableCell>
                   <TableCell>{job.fileName}</TableCell>
+                  <TableCell>{job.email || 'N/A'}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs ${
                       job.status === 'complete' ? 'bg-green-100 text-green-800' :
