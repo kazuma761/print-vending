@@ -1,6 +1,5 @@
 
 const { createClient } = require('@supabase/supabase-js');
-const { PDFDocument } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
