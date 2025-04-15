@@ -7,7 +7,7 @@ const { print } = require('pdf-to-printer');
 
 // Supabase configuration
 const SUPABASE_URL = 'https://ojoexitafvekloepfnlb.supabase.co';
-const SUPABASE_SERVICE_KEY = 'your_service_key_here'; // Replace with your service key
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qb2V4aXRhZnZla2xvZXBmbmxiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDM3MTkxOSwiZXhwIjoyMDU5OTQ3OTE5fQ.76bbzGeSganErgpA33TFzq7150WyyNFPuqFZK6aq3BQ'; 
 const PRINTER_ID = 'laptop_printer_01'; // Unique identifier for this printer
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
